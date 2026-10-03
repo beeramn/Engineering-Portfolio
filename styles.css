@@ -2,8 +2,8 @@
   --accent: #78b7ff;
   --brand: #00539b;
   --brand-hover: #126bb8;
-  --background: #1e1e1e;
-  --sidebar: #151515;
+  --background: #000000;
+  --sidebar: #000000;
   --panel: #2b2b2b;
   --text: #f2f4f8;
   --muted: #b8c0cc;
@@ -87,7 +87,14 @@ a { color: inherit; }
 .section h1 { margin: 0 0 1rem; }
 
 /* Home */
-.home { background: var(--background); }
+.home {
+  background:
+    linear-gradient(180deg, rgba(1, 36, 71, 0.89), rgba(0, 0, 0, 0.99)),
+    url("assets/background.png") center / cover no-repeat;
+  color: #ffffff;
+  padding-bottom: 8%;
+}
+
 .home img {
   display: block;
   width: 180px;
@@ -97,6 +104,7 @@ a { color: inherit; }
   border-radius: 50%;
   object-fit: cover;
 }
+
 .button-group { display: flex; flex-wrap: wrap; justify-content: center; gap: 1rem; margin-top: 1.5rem; }
 .button-group a {
   display: inline-flex;
