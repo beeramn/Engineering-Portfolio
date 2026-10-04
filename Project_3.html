@@ -1,453 +1,598 @@
-<!DOCTYPE html> 
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Light Pole Base Form - (30" Diameter)</title>
-
-  <!-- Font Awesome -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
-	 <link rel="icon" type="image/x-icon" href="assets/favicon.ico">
-
-  <!-- model-viewer -->
-  <script type="module" src="https://cdn.jsdelivr.net/npm/@google/model-viewer/dist/model-viewer.min.js"></script>
-
+  <meta name="description" content="SegmentAnyBone is a SAM-based research model for segmenting bones across MRI locations and sequences." />
+  <title>SegmentAnyBone | Bone MRI Segmentation</title>
   <style>
-    /* ---------- Vars & Reset ---------- */
-    :root{
-      --accent:#00aaff;
-      --bg:#1a1a1a;
-      --panel:#111;
-      --muted:#aaa;
-      --text:#e0e0e0;
-      --max-width:1200px;
+    :root {
+      --accent: #00aaff;
+      --bg: #1a1a1a;
+      --panel: #111;
+      --panel-raised: #202020;
+      --muted: #aaa;
+      --text: #e0e0e0;
+      --line: #353535;
+      --max-width: 1120px;
     }
-    *{box-sizing:border-box;margin:0;padding:0}
-    html,body{height:100%;background:var(--bg);color:var(--text);font-family:Arial,Helvetica,sans-serif;scroll-behavior:smooth; -webkit-font-smoothing:antialiased;}
-    a{color:inherit}
-
-    /* ---------- Layout ---------- */
-    .sidebar { position: fixed;  top: 0; left: 0; width: 220px; height: 100%; background: #111; padding: 2rem 1rem; display: flex; flex-direction: column; align-items: center;
-      transition: transform 0.3s ease; z-index: 100;}
-    .sidebar h2 {   color: var(--accent); margin-bottom: 1.5rem;padding-bottom: 0.8rem; border-bottom: 1px solid #333; /* Adjust color if needed */ width: 100%; text-align: center;}
-    .sidebar ul { list-style: none; width: 100%; flex-grow: 1;}
-    .sidebar ul li { margin: 1.5rem 0; text-align: center;}
-    .sidebar ul li a { color: #e0e0e0; text-decoration: none; font-weight: bold; font-size: 1.2rem; transition: color 0.3s;}
-    .sidebar ul li a:hover { color: var(--accent); }
-    .back-button { margin-top: auto;  background: #e63946;  color: white;  text-decoration: none;  font-weight: bold;  font-size: 1.1rem;  padding: 0.6rem 1rem;
-      border-radius: 8px;  display: flex;  align-items: center;  gap: 8px;  transition: background 0.3s, transform 0.2s;}
-    .back-button:hover { background: #ff4d5a;  transform: translateX(-3px);}
-
-    /* ---------- Mobile Toggle & Overlay ---------- */
-    .menu-toggle{
-      position:fixed;top:12px;left:12px;z-index:1600;
-      display:none;background:var(--panel);color:var(--text);border-radius:8px;padding:.45rem .6rem;font-size:1.1rem;cursor:pointer;
-      align-items:center;gap:.5rem;  outline: 2px solid var(--accent); outline-offset: 2px;}
-    .menu-toggle:focus{outline:2px solid var(--accent)}
-    /* Visual overlay on mobile only. IMPORTANT: pointer-events:none so page remains scrollable behind the menu (per your 'allow scroll' decision). */
-	.mobile-overlay { position: fixed; top: 0; right: 0; width: calc(100% - 220px); height: 100%; background: rgba(0,0,0,.45); z-index: 1500; opacity: 0; pointer-events: none; transition: opacity .25s ease;}
-	.sidebar.active + .mobile-overlay.active { pointer-events: auto;}
-
-    /* ---------- Main content ---------- */
-    .content {  margin-left: 220px;  padding: 2rem;  text-align: center; transition: margin-left 0.3s ease, transform 0.3s ease;}
-    .project-title { font-size: 2.2rem; color: var(--accent); margin-bottom: 2rem;}
-
-    /* ---------- Sections ---------- */
-    .section { padding: 2rem 1.5rem; margin-bottom: 3rem; border-bottom: 1px solid #333; opacity: 0; transform: translateY(20px); transition: opacity 0.6s ease, transform 0.6s ease;}
-    .section.visible { opacity: 1; transform: translateY(0); }
-    .section h1 { margin-bottom: 1.5rem; color: #fff; }
-
-    /* ---------- Masonry/Images ---------- */
-    .masonry{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:.8rem;max-width:1100px;margin:0 auto}
-    .img-wrapper{position:relative;cursor:pointer;overflow:hidden;border-radius:8px}
-    .img-wrapper img{width:100%;height:100%;display:block;object-fit:cover;border-radius:8px;transition:transform .28s ease,box-shadow .28s ease}
-    .img-wrapper img:hover{transform:scale(1.03)}
-    .img-wrapper span.overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-weight:700;background:rgba(0,0,0,.45);color:#fff;border-radius:8px;opacity:0;transition:opacity .2s}
-    .img-wrapper:hover span.overlay{opacity:1}
-
-    /* ---------- Case Study ---------- */
-    .case-study{max-width:900px;margin:0 auto;display:flex;flex-direction:column;gap:2rem;text-align:left}
-    .case-block h2{color:#8ab4f8;font-size:1.2rem;text-transform:uppercase;letter-spacing:.5px;margin-bottom:.45rem}
-    .case-block p,.case-block ul{font-size:1.05rem;line-height:1.6;padding-left: 1.2rem;}
-
-    /* ---------- Lightbox ---------- */
-    #lightbox{display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:2000;justify-content:center;align-items:center;padding:1rem}
-    #lightbox.open{display:flex}
-    #lightbox img{max-width:95%;max-height:85%;object-fit:contain;border-radius:8px;box-shadow:0 8px 30px rgba(0,0,0,.8)}
-    #lightbox .close-btn{position:absolute;top:18px;right:28px;font-size:2rem;color:#fff;cursor:pointer}
-    #lightbox .close-btn:focus{outline:2px solid var(--accent)}
-	#lightbox .nav-btn {  position: absolute;  top: 50%;  transform: translateY(-50%);  font-size: 2.5rem;  color: white; background: rgba(0,0,0,0.5);  border: none;  cursor: pointer;  padding: 0.6rem 1rem;  border-radius: 6px; user-select: none;  transition: background 0.3s;}
-	#lightbox .nav-btn:hover {  background: rgba(0,0,0,0.75);}
-	#lbPrevBtn { left: 20px; }
-	#lbNextBtn { right: 20px; }
-
-	/* ----- Footer styling ----- */
-	footer { background: var(--panel); color: var(--muted); text-align: center; padding: 1.5rem 1rem; font-size: 0.9rem; border-top: 1px solid #333; margin-top: 3rem;}
-	footer p { margin: 0; letter-spacing: 0.5px;}
-	footer a { color: var(--accent); text-decoration: none; font-weight: 600;}
-	footer a:hover { text-decoration: underline;}
-	/* Keep footer at bottom when content is short */
-	html, body { height: 100%; display: flex; flex-direction: column;}
-	main.content { flex: 1;}
-
-    /* ---------- Responsive rules ---------- */
-    /* Mobile first adjustments */
-    @media (max-width:767px){
-      .sidebar{transform:translateX(-105%);width:85vw;max-width:320px;padding:3rem;align-items:center}
-      .sidebar.active{transform:translateX(0)}
-      .menu-toggle{display:flex}
-      .content{margin-left:0;padding:1rem}
-      .project-title{font-size:1.4rem}
-      model-viewer{height:40vh}
-      .mobile-overlay.active{opacity:1}
-        .mobile-overlay {
-    width: 0vw;         /* Covers only the right 15% behind content */
-    left: auto;          /* Reset left positioning */
-    right: 0;
-    transform: none;     /* No sliding needed */
-  }
-      .masonry{grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:.6rem}
-      .back-button{align-self:flex-start;margin-top:.75rem}
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--text);
+      font-family: Arial, Helvetica, sans-serif;
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
     }
-
-    /* Tablet: fixed sidebar (per your 'fixed' choice) */
-    @media (min-width:768px) and (max-width:1024px){
-      .sidebar{transform:none;left:0;width:220px;padding:1.8rem;align-items:center}
-      .menu-toggle{display:none}
-      .content{margin-left:220px;padding:1.5rem}
-      model-viewer{height:55vh}
+    a { color: inherit; }
+    .sidebar {
+      position: fixed;
+      inset: 0 auto 0 0;
+      z-index: 100;
+      display: flex;
+      width: 260px;
+      flex-direction: column;
+      align-items: center;
+      padding: 2rem 1rem;
+      background: var(--panel);
+      transition: transform .3s ease;
     }
-
-    /* Desktop */
-    @media (min-width:1025px){
-      .sidebar{transform:none;left:0;width:260px}
-      .content{margin-left:260px;padding:2rem}
+    .sidebar h2 {
+      width: 100%;
+      margin-bottom: 1.25rem;
+      padding-bottom: .8rem;
+      border-bottom: 1px solid var(--line);
+      color: var(--accent);
+      text-align: center;
     }
-
-    /* Small accessibility improvements */
-    button, .menu-toggle{border:0;background:none;color:inherit}
+    .sidebar ul { width: 100%; list-style: none; }
+    .sidebar li { margin: 1rem 0; text-align: center; }
+    .sidebar li a {
+      color: var(--text);
+      font-size: 1.05rem;
+      font-weight: 700;
+      text-decoration: none;
+      transition: color .2s ease;
+    }
+    .sidebar li a:hover, .sidebar li a:focus-visible { color: var(--accent); }
+    .back-button {
+      display: inline-flex;
+      align-items: center;
+      gap: .5rem;
+      margin-top: auto;
+      padding: .6rem 1rem;
+      border-radius: 8px;
+      background: #e63946;
+      color: #fff;
+      font-weight: 700;
+      text-decoration: none;
+      transition: background .2s ease, transform .2s ease;
+    }
+    .back-button:hover { background: #ff4d5a; transform: translateX(-3px); }
+    .menu-toggle {
+      position: fixed;
+      top: 14px;
+      left: 14px;
+      z-index: 1600;
+      display: none;
+      padding: .45rem .7rem;
+      border: 2px solid var(--accent);
+      border-radius: 8px;
+      background: var(--panel);
+      color: var(--text);
+      font-size: 1.15rem;
+      cursor: pointer;
+    }
+    .menu-toggle:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
+    .content {
+      max-width: calc(var(--max-width) + 280px);
+      margin-left: 260px;
+      padding: 2rem 2.5rem 0;
+    }
+    .hero {
+      max-width: var(--max-width);
+      margin: 0 auto 1rem;
+      padding: 3.5rem 1.5rem 2rem;
+      text-align: center;
+    }
+    .eyebrow {
+      margin-bottom: .65rem;
+      color: var(--accent);
+      font-size: .82rem;
+      font-weight: 700;
+      letter-spacing: .14em;
+      text-transform: uppercase;
+    }
+    .project-title {
+      margin-bottom: 1rem;
+      color: var(--accent);
+      font-size: clamp(2rem, 4vw, 3.2rem);
+      line-height: 1.15;
+    }
+    .hero-copy {
+      max-width: 850px;
+      margin: 0 auto;
+      color: #d0d0d0;
+      font-size: 1.12rem;
+    }
+    .stat-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: .85rem;
+      max-width: 900px;
+      margin: 2rem auto 0;
+    }
+    .stat {
+      padding: 1rem .75rem;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: var(--panel);
+    }
+    .stat strong { display: block; color: #fff; font-size: 1.25rem; }
+    .stat span { color: var(--muted); font-size: .9rem; }
+    .section {
+      max-width: var(--max-width);
+      margin: 0 auto 2.25rem;
+      padding: 2.2rem 1.5rem;
+      border-bottom: 1px solid var(--line);
+      scroll-margin-top: 1.5rem;
+    }
+    .section > h2 {
+      margin-bottom: 1.25rem;
+      color: #fff;
+      font-size: 1.8rem;
+      text-align: center;
+    }
+    .section-intro {
+      max-width: 880px;
+      margin: 0 auto 1.5rem;
+      color: #d0d0d0;
+      text-align: center;
+    }
+    .case-study {
+      display: flex;
+      flex-direction: column;
+      gap: 1.1rem;
+      max-width: 930px;
+      margin: 0 auto;
+      text-align: left;
+    }
+    .case-block, .feature-card {
+      padding: 1.2rem 1.35rem;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: var(--panel);
+    }
+    .case-block h3, .feature-card h3 {
+      margin-bottom: .55rem;
+      color: #8ab4f8;
+      font-size: 1.02rem;
+      letter-spacing: .04em;
+      text-transform: uppercase;
+    }
+    .case-block p, .case-block ul, .case-block ol, .feature-card p {
+      font-size: 1rem;
+      line-height: 1.65;
+    }
+    .case-block ul, .case-block ol { padding-left: 1.25rem; }
+    .case-block li + li { margin-top: .3rem; }
+    .feature-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: .9rem;
+      max-width: 930px;
+      margin: 0 auto;
+      text-align: left;
+    }
+    code {
+      padding: .08rem .32rem;
+      border-radius: 4px;
+      background: #292929;
+      color: #b9dcff;
+      font-family: Consolas, "Courier New", monospace;
+      overflow-wrap: anywhere;
+    }
+    .table-wrap { overflow-x: auto; max-width: 930px; margin: 1rem auto 0; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: var(--panel);
+      text-align: left;
+    }
+    caption {
+      margin-bottom: .65rem;
+      color: #8ab4f8;
+      font-weight: 700;
+      text-align: left;
+    }
+    th, td { padding: .72rem .85rem; border: 1px solid var(--line); vertical-align: top; }
+    th { background: var(--panel-raised); color: #fff; }
+    td { color: #d0d0d0; }
+    .metric-table td:first-child { white-space: nowrap; }
+    .callout {
+      max-width: 930px;
+      margin: 1rem auto 0;
+      padding: 1rem 1.2rem;
+      border-left: 4px solid var(--accent);
+      border-radius: 0 8px 8px 0;
+      background: #15202a;
+      color: #dceaf5;
+    }
+    .command {
+      display: block;
+      margin: .45rem 0 1rem;
+      padding: .8rem 1rem;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #090909;
+      color: #b9dcff;
+      font-family: Consolas, "Courier New", monospace;
+      overflow-wrap: anywhere;
+    }
+    .video-links {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: .8rem;
+      margin: 1.25rem auto 0;
+    }
+    .video-links a {
+      padding: .65rem 1rem;
+      border: 1px solid var(--accent);
+      border-radius: 8px;
+      color: #cceeff;
+      font-weight: 700;
+      text-decoration: none;
+      transition: background .2s ease;
+    }
+    .video-links a:hover { background: #06334a; }
+    footer {
+      margin-top: 2rem;
+      padding: 1.4rem 1rem;
+      border-top: 1px solid var(--line);
+      background: var(--panel);
+      color: var(--muted);
+      font-size: .9rem;
+      text-align: center;
+    }
+    @media (max-width: 900px) {
+      .sidebar { width: 220px; }
+      .content { margin-left: 220px; padding-inline: 1.5rem; }
+      .stat-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+    @media (max-width: 767px) {
+      .sidebar {
+        width: min(85vw, 320px);
+        padding: 3.5rem 2rem 2rem;
+        transform: translateX(-105%);
+      }
+      .sidebar.active { transform: translateX(0); }
+      .menu-toggle { display: block; }
+      .content { margin-left: 0; padding: 1rem; }
+      .hero { padding: 4rem .5rem 1.5rem; }
+      .section { padding: 1.7rem .35rem; }
+      .section > h2 { font-size: 1.5rem; }
+      .feature-grid { grid-template-columns: 1fr; }
+      .stat-grid { gap: .55rem; }
+      .stat { padding: .8rem .45rem; }
+      .stat strong { font-size: 1.05rem; }
+      .stat span { font-size: .8rem; }
+      th, td { padding: .6rem; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      *, *::before, *::after { transition-duration: .01ms !important; }
+    }
   </style>
 </head>
 <body>
-
-  <!-- Mobile Menu Toggle (hamburger) -->
   <button class="menu-toggle" id="menuToggle" aria-expanded="false" aria-controls="sidebar" aria-label="Open menu">
-    <i class="fas fa-bars" aria-hidden="true"></i>
+    <span aria-hidden="true">☰</span>
   </button>
 
-  <!-- Visual overlay (mobile only visual) -->
-  <div class="mobile-overlay" id="mobileOverlay" aria-hidden="true"></div>
-
-  <!-- Sidebar -->
   <nav id="sidebar" class="sidebar" aria-label="Main navigation">
-    <h2>Portfolio</h2>
+    <h2>Project</h2>
     <ul>
       <li><a href="#overview">Overview</a></li>
-      <li><a href="#3d_model">3D Model</a></li>
-      <li><a href="#drawings">Drawings</a></li>
-      <li><a href="#photos">Photos</a></li>
+      <li><a href="#dataset">Annotated Data</a></li>
+      <li><a href="#model">Model</a></li>
+      <li><a href="#results">Results</a></li>
+      <li><a href="#role">My Contribution</a></li>
+      <li><a href="#scope">Scope</a></li>
     </ul>
-    <a href="index.html#projects" class="back-button"><i class="fas fa-arrow-left" aria-hidden="true"></i> Back</a>
+    <a href="index.html#projects" class="back-button"><span aria-hidden="true">←</span> Back to Portfolio</a>
   </nav>
 
-  <!-- Main Content -->
-  <main class="content" id="mainContent" tabindex="-1">
-    <h1 class="project-title">Light Pole Base Form - (30" Diameter)</h1>
+  <main class="content" id="mainContent">
+    <header class="hero">
+      <p class="eyebrow">Medical Imaging · MRI · Foundation Models · Co-author</p>
+      <h1 class="project-title">SegmentAnyBone</h1>
+      <p class="hero-copy">
+        A research model designed to segment bones across MRI exams from different body locations and sequences.
+        SegmentAnyBone adapts the Segment Anything Model (SAM) with a 3D depth-attention branch and supports both
+        automatic and prompt-based segmentation.
+      </p>
+      <div class="stat-grid" aria-label="Research project highlights">
+        <div class="stat"><strong>17 locations</strong><span>Across the annotated dataset</span></div>
+        <div class="stat"><strong>96 bone types</strong><span>Binary bone vs. non-bone masks</span></div>
+        <div class="stat"><strong>2 modes</strong><span>Automatic and prompt-based</span></div>
+        <div class="stat"><strong>86.87% DSC</strong><span>Reported average in comparison table</span></div>
+      </div>
+    </header>
 
-    <!-- Overview -->
     <section id="overview" class="section" aria-labelledby="overview-heading">
-      <h1 id="overview-heading">Project Overview</h1>
-
+      <h2 id="overview-heading">Project Overview</h2>
       <div class="case-study">
         <div class="case-block">
-          <h2>Objective</h2>
-          <p>Design and fabricate a <strong>30" diameter light pole base form</strong> optimized for <strong>repeated casting, dimensional precision, and simplified assembly</strong>, while reducing labor time and material waste.</p>
+          <h3>The Problem</h3>
+          <p>
+            Bone segmentation in MRI is difficult to automate across anatomy and scan protocols. MRI bone
+            annotations are scarce, and nearby soft tissue, water-fat boundaries, and low-contrast regions can
+            make bone edges ambiguous. Existing approaches often focus on one body location or sequence.
+          </p>
         </div>
-
         <div class="case-block">
-          <h2>Role & Responsibilities</h2>
-          <ul>
-        <li>Lead CAD designer — developed all 3D models and technical drawings</li>
-        <li>Created detailed BOM and cut list</li>
-        <li>Coordinated fabrication and assembly process</li>
-          </ul>
+          <h3>Research Goal</h3>
+          <p>
+            SegmentAnyBone aims to provide one adaptable model for bone segmentation across common MRI locations
+            and sequences. The model predicts a binary mask for bone versus non-bone, rather than classifying each
+            individual bone. It can segment all visible bones automatically or use point and box prompts to target
+            selected regions and correct missed areas.
+          </p>
         </div>
-
         <div class="case-block">
-          <h2>Engineering Features</h2>
-          <ul>
-        <li>Two-piece cylindrical design for fast setup and removal</li>
-        <li>Precision bolt patterns ensuring accurate alignment</li>
-        <li>Durable construction for multiple reuse cycles without dimensional loss</li>
-          </ul>
-        </div>
-
-        <div class="case-block">
-          <h2>Tools & Software</h2>
-        <p>Autodesk Inventor (CAD Modeling), MIG Welding, and Plasma Cutting</p>
-        </div>
-
-        <div class="case-block">
-          <h2>Outcome</h2>
-          <p>Successfully produced a light pole base form with <strong>consistent casting accuracy</strong>, <strong>reduced setup time</strong>, and <strong>extended lifecycle durability</strong> across repeated use.</p>
+          <h3>My Involvement</h3>
+          <p>
+            My hands-on contribution focused on annotating MRI data for the project. I was also involved in and
+            informed about how the labeled data was used in model training. The model and training sections below
+            describe the broader team approach presented in the paper.
+          </p>
         </div>
       </div>
     </section>
 
-    <!-- 3D Model -->
-    <section id="3d_model" class="section" aria-labelledby="model-heading">
-      <h1 id="model-heading">3D Model</h1>
-<model-viewer src="Project_3/4 - Form Assembly (30 inch Light Pole).glb" 
-	ar ar-modes="webxr scene-viewer quick-look" 
-	camera-controls tone-mapping="Neutral" 
-	poster="poster.webp" 
-	shadow-intensity="1.77" 
-	alt="Box Form 3D Model" 
-	loading="eager" 
-	style="width: 100%; margin: 0 auto; max-width: 800px; height: 60vh; border-radius: 12px; background-color:#222;" auto-rotate exposure="0.59" shadow-softness="0.53" environment-image="legacy"> 
-</model-viewer>
-    </section>
-
-    <!-- Drawings -->
-    <section id="drawings" class="section" aria-labelledby="drawings-heading">
-      <h1 id="drawings-heading">Drawings</h1>
-      <div class="masonry" id="drawingsMasonry">
-        <div class="img-wrapper"><img loading="lazy" src="Project_3/Drawings/1 - Base (30 inch Light Pole) (No DIM)_page-0001.jpg" alt="Base Assembly"><span class="overlay">Click to expand</span></div>
-        <div class="img-wrapper"><img loading="lazy" src="Project_3/Drawings/2 - 74 inch Side Assembly (30 inch Light Pole) (No DIM)_page-0001.jpg" alt="74 inch side Assembly"><span class="overlay">Click to expand</span></div>
-        <div class="img-wrapper"><img loading="lazy" src="Project_3/Drawings/2-1 - 24 inch Side Assembly (30 inch Light Pole) (No DIM)_page-0001.jpg" alt="24 inch side Assembly"><span class="overlay">Click to expand</span></div>
-        <div class="img-wrapper"><img loading="lazy" src="Project_3/Drawings/2-2 - 12 inch Side Assembly (30 inch Light Pole) (No DIM)_page-0001.jpg" alt="12 inch side Assembly"><span class="overlay">Click to expand</span></div>
-        <div class="img-wrapper"><img loading="lazy" src="Project_3/Drawings/3 - Knockout Assembly (30 inch Light Pole) (No DIM)_page-0001.jpg" alt=" Knockout Assembly"><span class="overlay">Click to expand</span></div>
-        <div class="img-wrapper"><img loading="lazy" src="Project_3/Drawings/4 - Form Assembly (30 inch Light Pole) (No DIM)_page-0001.jpg" alt=" Form Assembly"><span class="overlay">Click to expand</span></div>
+    <section id="dataset" class="section" aria-labelledby="dataset-heading">
+      <h2 id="dataset-heading">Annotated MRI Dataset</h2>
+      <p class="section-intro">
+        The paper describes a multi-tier annotation effort that built a broad dataset for a task with few existing
+        public bone MRI labels. The project reports more than 300 annotated volumes spanning 17 body locations.
+      </p>
+      <div class="feature-grid">
+        <article class="feature-card">
+          <h3>Annotation Scope</h3>
+          <p>
+            The initial annotation effort prioritized T1-weighted MRI and five primary locations: hip, shoulder,
+            humerus, knee, and thigh. Annotation expanded to additional locations. The goal was to label every
+            visible bone, including bones that appeared incidentally in a scan, resulting in 96 unique bone types.
+          </p>
+        </article>
+        <article class="feature-card">
+          <h3>Annotation Review</h3>
+          <p>
+            The annotation process was guided by a fellowship-trained musculoskeletal radiologist and a senior
+            orthopedic surgery fellow. Experienced physicians oversaw annotator training, refinement, and approval
+            of many annotations; test cases were reviewed by an experienced physician.
+          </p>
+        </article>
+        <article class="feature-card">
+          <h3>Extending to Other Sequences</h3>
+          <p>
+            To include non-T1 scans without repeating all manual labeling, the team paired same-patient volumes
+            from the same view. A research annotator manually checked alignment, and T1 masks were transferred
+            only when the visible skeletal structures aligned well.
+          </p>
+        </article>
+        <article class="feature-card">
+          <h3>Patient-Level Evaluation Splits</h3>
+          <p>
+            The development data used separate patients across training and validation sets. The paper describes
+            195 training volumes, validation sets of 44 and 32 volumes, and an independent test set of 35 volumes
+            across seven locations, with no patient overlap.
+          </p>
+        </article>
+      </div>
+      <div class="callout">
+        Annotation quality and coverage were central to the project: the model needed examples across many bones,
+        locations, and MRI sequences to learn a general bone-versus-background task.
       </div>
     </section>
 
-    <!-- Photos -->
-    <section id="photos" class="section" aria-labelledby="photos-heading">
-      <h1 id="photos-heading">Photos</h1>
-      <div class="masonry" id="photosMasonry">
-        <div class="img-wrapper"><img loading="lazy" src="Project_3/Pictures/Form_Fabrication_Base.jpg" alt="Base"><span class="overlay">Click to expand</span></div>
-        <div class="img-wrapper"><img loading="lazy" src="Project_3/Pictures/Form_Fabrication_Form 1.jpg" alt="24 inch side"><span class="overlay">Click to expand</span></div>
-        <div class="img-wrapper"><img loading="lazy" src="Project_3/Pictures/Form_Fabrication_Form 2.jpg" alt="12 inch side"><span class="overlay">Click to expand</span></div>
-        <div class="img-wrapper"><img loading="lazy" src="Project_3/Pictures/Form_Fabrication_Form 3.jpg" alt="12 inch side 2"><span class="overlay">Click to expand</span></div>
-		<div class="img-wrapper"><img loading="lazy" src="Project_3/Pictures/Form_Fabrication_Form.jpg" alt="12 inch side 3"><span class="overlay">Click to expand</span></div>
-		<div class="img-wrapper"><img loading="lazy" src="Project_3/Pictures/Form_Fabrication_Knockout 1.jpg" alt="KNnock out assembly"><span class="overlay">Click to expand</span></div>
-        <div class="img-wrapper"><img loading="lazy" src="Project_3/Pictures/Form_Fabrication_Knockouts.jpg" alt="Knock out assembly 2"><span class="overlay">Click to expand</span></div>		  
-		<div class="img-wrapper"><img loading="lazy" src="Project_3/Pictures/Form_Fabrication_Form_Close.jpg" alt="Form Assembly"><span class="overlay">Click to expand</span></div>
-		<div class="img-wrapper"><img loading="lazy" src="Project_3/Pictures/Form_Fabrication_Form_Closed.jpg" alt="Form Assebmly 2"><span class="overlay">Click to expand</span></div>
-		<div class="img-wrapper"><img loading="lazy" src="Project_3/Pictures/Form_Fabrication_Form_Open.jpg" alt="Form Open "><span class="overlay">Click to expand</span></div>
+    <section id="model" class="section" aria-labelledby="model-heading">
+      <h2 id="model-heading">SAM Adaptation and Depth Attention</h2>
+      <p class="section-intro">
+        SegmentAnyBone combines a slice-based SAM branch with a lightweight 3D attention branch. A learnable gate
+        fuses the image features with information from neighboring slices.
+      </p>
+      <div class="feature-grid">
+        <article class="feature-card">
+          <h3>2D SAM Branch</h3>
+          <p>
+            Each MRI slice is resized to the SAM input resolution and processed by a vision-transformer image
+            encoder, prompt encoder, and mask decoder. The output is adapted for binary bone segmentation.
+          </p>
+        </article>
+        <article class="feature-card">
+          <h3>Parameter-Efficient Fine-Tuning</h3>
+          <p>
+            Adapter blocks are added to attention blocks in the image encoder and mask decoder. Training updates
+            a small part of the pretrained model, leaving most pretrained parameters frozen during adapter
+            fine-tuning.
+          </p>
+        </article>
+        <article class="feature-card">
+          <h3>3D Depth-Attention Branch</h3>
+          <p>
+            A low-resolution 3D branch uses a streamlined V-Net-style network to estimate where bone is likely
+            to appear through the volume. It draws on adjacent-slice context, then the learnable gate blends that
+            information into the slice-level image features.
+          </p>
+        </article>
+        <article class="feature-card">
+          <h3>Hybrid Prompts</h3>
+          <p>
+            Training alternates between prompted and automatic segmentation. In the paper's setup, 30% of batch
+            iterations use generated point or box prompts, while the remaining 70% omit prompts and predict all
+            bone regions. At inference, users can add prompts to focus or correct a result.
+          </p>
+        </article>
+      </div>
+
+      <div class="case-study" style="margin-top: 1rem;">
+        <div class="case-block">
+          <h3>Two-Stage Training Strategy</h3>
+          <ol>
+            <li><strong>Adapt the model:</strong> fine-tune SAM adapters for automatic segmentation and train the 3D attention branch separately.</li>
+            <li><strong>Fuse context:</strong> incorporate hybrid prompting and attention fusion, freeze the image encoder, and train the fusion layers and mask decoder.</li>
+          </ol>
+          <p style="margin-top: .75rem;">
+            This keeps the 2D branch useful on its own while allowing the final model to combine slice features
+            with volume-level context.
+          </p>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <caption>Training setup reported in the paper</caption>
+          <thead><tr><th scope="col">Component</th><th scope="col">Reported setup</th></tr></thead>
+          <tbody>
+            <tr><td>Compute</td><td>NVIDIA RTX A6000 GPUs</td></tr>
+            <tr><td>Batch size and duration</td><td>Batch size 8; 200 epochs</td></tr>
+            <tr><td>Optimizer</td><td>AdamW with a 5 × 10<sup>-4</sup> learning rate</td></tr>
+            <tr><td>Warmup</td><td>First 200 iterations</td></tr>
+            <tr><td>Segmentation objective</td><td>Cross-entropy and Dice losses; the 3D branch also uses Tversky loss</td></tr>
+          </tbody>
+        </table>
       </div>
     </section>
 
-<!-- Lightbox -->
-<div id="lightbox" role="dialog" aria-modal="true" aria-hidden="true">
-  <button class="close-btn" aria-label="Close image" title="Close" id="lbCloseBtn">&times;</button>
-  <button class="nav-btn prev" id="lbPrevBtn" aria-label="Previous image">&#10094;</button>
-  <img id="lightbox-img" src="" alt="Expanded view">
-  <button class="nav-btn next" id="lbNextBtn" aria-label="Next image">&#10095;</button>
-</div>
+    <section id="results" class="section" aria-labelledby="results-heading">
+      <h2 id="results-heading">Evaluation and Generalization</h2>
+      <p class="section-intro">
+        The study compared SegmentAnyBone with standard CNN and transformer segmentation approaches. The main
+        comparison evaluates T1 test cases across seven body locations; additional experiments test new locations,
+        MRI sequences, and an external lumbar-spine dataset.
+      </p>
+      <div class="table-wrap">
+        <table>
+          <caption>Average overlap metrics on the seven-location T1 test set</caption>
+          <thead>
+            <tr><th scope="col">Model</th><th scope="col">Dice score (DSC) ↑</th><th scope="col">Intersection over Union (IoU) ↑</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>SegmentAnyBone</td><td>86.87%</td><td>77.08%</td></tr>
+            <tr><td>nnU-Net 2D</td><td>84.23%</td><td>74.84%</td></tr>
+            <tr><td>Swin U-Net</td><td>71.85%</td><td>58.41%</td></tr>
+            <tr><td>Attention U-Net</td><td>67.96%</td><td>53.23%</td></tr>
+            <tr><td>U-Net</td><td>61.66%</td><td>46.39%</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="feature-grid" style="margin-top: 1rem;">
+        <article class="feature-card">
+          <h3>Unseen Locations</h3>
+          <p>Training on five primary locations and testing on unseen locations produced a reported average DSC of 78.73%.</p>
+        </article>
+        <article class="feature-card">
+          <h3>Unseen Sequences</h3>
+          <p>Training exclusively with T1 sequences and testing on other MRI sequences produced a reported DSC of 77.68%.</p>
+        </article>
+        <article class="feature-card">
+          <h3>External Dataset</h3>
+          <p>On the external MRI-LumbarSpine dataset, SegmentAnyBone achieved a reported DSC of 77.62%.</p>
+        </article>
+        <article class="feature-card">
+          <h3>Interactive Correction</h3>
+          <p>Point and box prompts can target selected bones or correct an automatic prediction, including small regions missed near the edge of a volume.</p>
+        </article>
+      </div>
+      <div class="callout">
+        The paper's comparison table and conclusion report 86.87% average DSC; one paragraph in the results text
+        reports 86.36%. This page uses the table value shown above.
+      </div>
+    </section>
 
-    <!-- Footer -->
+    <section id="role" class="section" aria-labelledby="role-heading">
+      <h2 id="role-heading">My Contribution</h2>
+      <div class="case-study">
+        <div class="case-block">
+          <h3>Data Annotation · Brandon Ramirez</h3>
+          <p>
+            As a co-author, my hands-on contribution focused on annotating the MRI data used by the project. That work supported the ground-truth
+            masks needed to train and evaluate a model across different bone structures and scan locations.
+          </p>
+        </div>
+        <div class="case-block">
+          <h3>Understanding the Training Process</h3>
+          <p>
+            I was involved in the project and stayed informed about how the model was trained. I understand how
+            the annotated data supported the model-development process, including the SAM-based segmentation
+            approach, the use of image and volume context, and the evaluation across locations and sequences.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <section id="scope" class="section" aria-labelledby="scope-heading">
+      <h2 id="scope-heading">Scope and Limitations</h2>
+      <div class="feature-grid">
+        <article class="feature-card">
+          <h3>Binary Segmentation</h3>
+          <p>
+            The current model predicts bone versus non-bone. It does not assign a separate class to each bone;
+            bone classification is described as a possible extension.
+          </p>
+        </article>
+        <article class="feature-card">
+          <h3>Evaluation Coverage</h3>
+          <p>
+            The main test results cover seven body locations. The paper identifies limited expert annotation
+            time as a constraint on the number of locations that could be tested.
+          </p>
+        </article>
+        <article class="feature-card">
+          <h3>Research Context</h3>
+          <p>
+            The results demonstrate segmentation performance in the study datasets. They are research findings
+            and do not by themselves establish clinical deployment or diagnostic use.
+          </p>
+        </article>
+      </div>
+    </section>
+
     <footer>
-      <p>© 2025 Nathaniel Karau — Engineering Portfolio v1.0</p>
+      <p>SegmentAnyBone · MRI Bone Segmentation Research</p>
     </footer>
   </main>
 
-  <!-- Scripts -->
   <script>
-    // Elements
     const menuToggle = document.getElementById('menuToggle');
     const sidebar = document.getElementById('sidebar');
-    const mobileOverlay = document.getElementById('mobileOverlay');
-    const content = document.querySelector('.content');
-    const sections = document.querySelectorAll('.section');
 
-    // Lightbox
-    const lightbox = document.getElementById('lightbox');
-    const lightboxImg = document.getElementById('lightbox-img');
-    const lbCloseBtn = document.getElementById('lbCloseBtn');
-
-    // ---------- Sidebar toggle (mobile) ----------
-    function openSidebar() {
-      sidebar.classList.add('active');
-      menuToggle.setAttribute('aria-expanded', 'true');
-      mobileOverlay.classList.add('active');
-      // NOTE: overlay is visual-only (pointer-events: none). We keep page scrollable behind.
-      // Focus the first link for accessibility
-      const firstLink = sidebar.querySelector('a');
-      if (firstLink) firstLink.focus();
-    }
     function closeSidebar() {
       sidebar.classList.remove('active');
       menuToggle.setAttribute('aria-expanded', 'false');
-      mobileOverlay.classList.remove('active');
-      menuToggle.focus();
+      menuToggle.setAttribute('aria-label', 'Open menu');
     }
 
     menuToggle.addEventListener('click', () => {
-      if (sidebar.classList.contains('active')) closeSidebar();
-      else openSidebar();
+      const isOpen = sidebar.classList.toggle('active');
+      menuToggle.setAttribute('aria-expanded', String(isOpen));
+      menuToggle.setAttribute('aria-label', isOpen ? 'Close menu' : 'Open menu');
     });
 
-    // Close sidebar if a nav link is clicked (mobile)
-    sidebar.querySelectorAll('a').forEach(a => {
-      a.addEventListener('click', () => {
+    sidebar.querySelectorAll('a[href^="#"]').forEach(link => {
+      link.addEventListener('click', () => {
         if (window.innerWidth <= 767) closeSidebar();
       });
     });
 
-    // If user taps outside when sidebar is active, we DO NOT auto-close (to honor "allow scroll").
-    // You can close with the hamburger again.
-
-    // ---------- Section fade-in (IntersectionObserver) ----------
-    const observer = new IntersectionObserver((entries) => {
-      entries.forEach(entry => {
-        if (entry.isIntersecting) entry.target.classList.add('visible');
-      });
-    }, { threshold: 0.12 });
-    sections.forEach(s => observer.observe(s));
-
-    // ---------- Lightbox behavior ----------
-    function openLightbox(src, alt) {
-      lightboxImg.src = src;
-      lightboxImg.alt = alt || 'Expanded image';
-      lightbox.classList.add('open');
-      lightbox.setAttribute('aria-hidden','false');
-      lbCloseBtn.focus();
-    }
-    function closeLightbox() {
-      lightbox.classList.remove('open');
-      lightbox.setAttribute('aria-hidden','true');
-      lightboxImg.src = '';
-    }
-
-    // Click images to open
-    document.querySelectorAll('.img-wrapper').forEach(wrapper => {
-      wrapper.addEventListener('click', () => {
-        const img = wrapper.querySelector('img');
-        openLightbox(img.src, img.alt);
-      });
-      // keyboard access
-      wrapper.setAttribute('tabindex','0');
-      wrapper.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          const img = wrapper.querySelector('img');
-          openLightbox(img.src, img.alt);
-        }
-      });
+    window.addEventListener('keydown', event => {
+      if (event.key === 'Escape' && sidebar.classList.contains('active')) closeSidebar();
     });
-
-// Collect all lightbox images (drawings + photos)
-const imgWrappers = document.querySelectorAll('.img-wrapper');
-let currentIndex = -1; // track which image is open
-
-function openLightbox(src, alt, index) {
-  lightboxImg.src = src;
-  lightboxImg.alt = alt || 'Expanded image';
-  lightbox.classList.add('open');
-  lightbox.setAttribute('aria-hidden','false');
-  currentIndex = index;
-  lbCloseBtn.focus();
-}
-
-function showImage(index) {
-  if (index < 0) index = imgWrappers.length - 1;
-  if (index >= imgWrappers.length) index = 0;
-  const img = imgWrappers[index].querySelector('img');
-  openLightbox(img.src, img.alt, index);
-}
-
-// Click to open
-imgWrappers.forEach((wrapper, i) => {
-  wrapper.addEventListener('click', () => {
-    const img = wrapper.querySelector('img');
-    openLightbox(img.src, img.alt, i);
-  });
-  wrapper.setAttribute('tabindex','0');
-  wrapper.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault();
-      const img = wrapper.querySelector('img');
-      openLightbox(img.src, img.alt, i);
-    }
-  });
-});
-
-// Nav buttons
-document.getElementById('lbPrevBtn').addEventListener('click', () => showImage(currentIndex - 1));
-document.getElementById('lbNextBtn').addEventListener('click', () => showImage(currentIndex + 1));
-
-// Keyboard support
-window.addEventListener('keydown', (e) => {
-  if (!lightbox.classList.contains('open')) return;
-  if (e.key === 'ArrowRight') showImage(currentIndex + 1);
-  if (e.key === 'ArrowLeft') showImage(currentIndex - 1);
-});
-	  
-    // Close controls
-    lbCloseBtn.addEventListener('click', closeLightbox);
-    lightbox.addEventListener('click', (e) => {
-      // If user clicked the backdrop (not the img or close button), close
-      if (e.target === lightbox) closeLightbox();
-    });
-    window.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape') {
-        if (lightbox.classList.contains('open')) closeLightbox();
-        if (sidebar.classList.contains('active') && window.innerWidth <= 767) closeSidebar();
-      }
-    });
-
-    // Lightbox swipe-to-close (vertical swipe)
-    (function addSwipeClose(el) {
-      let startY = null;
-      let moved = false;
-      el.addEventListener('touchstart', (e) => {
-        if (e.touches && e.touches.length === 1) {
-          startY = e.touches[0].clientY;
-          moved = false;
-        }
-      }, {passive:true});
-      el.addEventListener('touchmove', (e) => {
-        if (!startY) return;
-        const currentY = e.touches[0].clientY;
-        const diff = currentY - startY;
-        if (Math.abs(diff) > 20) moved = true;
-      }, {passive:true});
-      el.addEventListener('touchend', (e) => {
-        if (!moved) { startY = null; return; }
-        const endY = (e.changedTouches && e.changedTouches[0]) ? e.changedTouches[0].clientY : null;
-        if (startY && endY) {
-          const delta = endY - startY;
-          // swipe up or down to close
-          if (Math.abs(delta) > 80) closeLightbox();
-        }
-        startY = null; moved = false;
-      });
-    })(lightbox);
-
-    // ---------- Ensure model-viewer scales nicely on resize ----------
-    function adjustModelViewerHeight() {
-      const mv = document.querySelector('model-viewer');
-      if (!mv) return;
-      if (window.innerWidth < 480) mv.style.height = '40vh';
-      else if (window.innerWidth < 768) mv.style.height = '45vh';
-      else if (window.innerWidth < 1024) mv.style.height = '55vh';
-      else mv.style.height = '60vh';
-    }
-    window.addEventListener('resize', adjustModelViewerHeight);
-    adjustModelViewerHeight();
-
-    // ---------- Small UX improvements ----------
-    // Trap focus inside sidebar when it's open on mobile? We keep allow-scroll so focus-trap is not necessary.
-    // But we ensure keyboard users can toggle menu with Escape (handled above) and the toggle button is labeled.
-
-    // If user reloads while sidebar active on small screens, ensure state is consistent
-    window.addEventListener('load', () => {
-      if (window.innerWidth <= 767) {
-        sidebar.classList.remove('active');
-        mobileOverlay.classList.remove('active');
-        menuToggle.setAttribute('aria-expanded','false');
-      }
+    window.addEventListener('resize', () => {
+      if (window.innerWidth > 767) closeSidebar();
     });
   </script>
 </body>

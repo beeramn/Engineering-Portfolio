@@ -1,437 +1,571 @@
-<!DOCTYPE html> 
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>32-bit FPGA Processor & Embedded Claw Machine</title>
-
-  <!-- Font Awesome -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
-	 <link rel="icon" type="image/x-icon" href="assets/favicon.ico">
-
-  <!-- model-viewer -->
-  <script type="module" src="https://cdn.jsdelivr.net/npm/@google/model-viewer/dist/model-viewer.min.js"></script>
+  <meta name="description" content="A custom 32-bit, five-stage pipelined processor implemented in structural Verilog and deployed on a Xilinx FPGA to control a claw machine." />
+  <title>Custom 32-Bit Pipelined Processor on FPGA</title>
 
   <style>
-    /* ---------- Vars & Reset ---------- */
-    :root{
-      --accent:#00aaff;
-      --bg:#1a1a1a;
-      --panel:#111;
-      --muted:#aaa;
-      --text:#e0e0e0;
-      --max-width:1200px;
+    :root {
+      --accent: #00aaff;
+      --bg: #1a1a1a;
+      --panel: #111;
+      --panel-raised: #202020;
+      --muted: #aaa;
+      --text: #e0e0e0;
+      --line: #353535;
+      --max-width: 1120px;
     }
-    *{box-sizing:border-box;margin:0;padding:0}
-    html,body{height:100%;background:var(--bg);color:var(--text);font-family:Arial,Helvetica,sans-serif;scroll-behavior:smooth; -webkit-font-smoothing:antialiased;}
-    a{color:inherit}
 
-    /* ---------- Layout ---------- */
-    .sidebar { position: fixed;  top: 0; left: 0; width: 220px; height: 100%; background: #111; padding: 2rem 1rem; display: flex; flex-direction: column; align-items: center;
-      transition: transform 0.3s ease; z-index: 100;}
-    .sidebar h2 {   color: var(--accent); margin-bottom: 1.5rem;padding-bottom: 0.8rem; border-bottom: 1px solid #333; /* Adjust color if needed */ width: 100%; text-align: center;}
-    .sidebar ul { list-style: none; width: 100%; flex-grow: 1;}
-    .sidebar ul li { margin: 1.5rem 0; text-align: center;}
-    .sidebar ul li a { color: #e0e0e0; text-decoration: none; font-weight: bold; font-size: 1.2rem; transition: color 0.3s;}
-    .sidebar ul li a:hover { color: var(--accent); }
-    .back-button { margin-top: auto;  background: #e63946;  color: white;  text-decoration: none;  font-weight: bold;  font-size: 1.1rem;  padding: 0.6rem 1rem;
-      border-radius: 8px;  display: flex;  align-items: center;  gap: 8px;  transition: background 0.3s, transform 0.2s;}
-    .back-button:hover { background: #ff4d5a;  transform: translateX(-3px);}
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--text);
+      font-family: Arial, Helvetica, sans-serif;
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+    a { color: inherit; }
 
-    /* ---------- Mobile Toggle & Overlay ---------- */
-    .menu-toggle{
-      position:fixed;top:12px;left:12px;z-index:1600;
-      display:none;background:var(--panel);color:var(--text);border-radius:8px;padding:.45rem .6rem;font-size:1.1rem;cursor:pointer;
-      align-items:center;gap:.5rem;  outline: 2px solid var(--accent); outline-offset: 2px;}
-    .menu-toggle:focus{outline:2px solid var(--accent)}
-    /* Visual overlay on mobile only. IMPORTANT: pointer-events:none so page remains scrollable behind the menu (per your 'allow scroll' decision). */
-	.mobile-overlay { position: fixed; top: 0; right: 0; width: calc(100% - 220px); height: 100%; background: rgba(0,0,0,.45); z-index: 1500; opacity: 0; pointer-events: none; transition: opacity .25s ease;}
-	.sidebar.active + .mobile-overlay.active { pointer-events: auto;}
+    .sidebar {
+      position: fixed;
+      inset: 0 auto 0 0;
+      z-index: 100;
+      display: flex;
+      width: 240px;
+      flex-direction: column;
+      align-items: center;
+      padding: 2rem 1rem;
+      background: var(--panel);
+      transition: transform .3s ease;
+    }
+    .sidebar h2 {
+      width: 100%;
+      margin-bottom: 1.25rem;
+      padding-bottom: .8rem;
+      border-bottom: 1px solid var(--line);
+      color: var(--accent);
+      text-align: center;
+    }
+    .sidebar ul { width: 100%; list-style: none; }
+    .sidebar li { margin: 1rem 0; text-align: center; }
+    .sidebar li a {
+      color: var(--text);
+      font-size: 1.05rem;
+      font-weight: 700;
+      text-decoration: none;
+      transition: color .2s ease;
+    }
+    .sidebar li a:hover, .sidebar li a:focus-visible { color: var(--accent); }
+    .back-button {
+      display: inline-flex;
+      align-items: center;
+      gap: .5rem;
+      margin-top: auto;
+      padding: .6rem 1rem;
+      border-radius: 8px;
+      background: #e63946;
+      color: #fff;
+      font-weight: 700;
+      text-decoration: none;
+      transition: background .2s ease, transform .2s ease;
+    }
+    .back-button:hover { background: #ff4d5a; transform: translateX(-3px); }
 
-    /* ---------- Main content ---------- */
-    .content {  margin-left: 220px;  padding: 2rem;  text-align: center; transition: margin-left 0.3s ease, transform 0.3s ease;}
-    .project-title { font-size: 2.2rem; color: var(--accent); margin-bottom: 2rem;}
+    .menu-toggle {
+      position: fixed;
+      top: 14px;
+      left: 14px;
+      z-index: 1600;
+      display: none;
+      padding: .45rem .7rem;
+      border: 2px solid var(--accent);
+      border-radius: 8px;
+      background: var(--panel);
+      color: var(--text);
+      font-size: 1.15rem;
+      cursor: pointer;
+    }
+    .menu-toggle:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
 
-    /* ---------- Sections ---------- */
-    .section { padding: 2rem 1.5rem; margin-bottom: 3rem; border-bottom: 1px solid #333; opacity: 0; transform: translateY(20px); transition: opacity 0.6s ease, transform 0.6s ease;}
+    .content {
+      max-width: calc(var(--max-width) + 280px);
+      margin-left: 240px;
+      padding: 2rem 2.5rem 0;
+    }
+    .hero {
+      max-width: var(--max-width);
+      margin: 0 auto 1rem;
+      padding: 3.5rem 1.5rem 2rem;
+      text-align: center;
+    }
+    .eyebrow {
+      margin-bottom: .65rem;
+      color: var(--accent);
+      font-size: .82rem;
+      font-weight: 700;
+      letter-spacing: .14em;
+      text-transform: uppercase;
+    }
+    .project-title {
+      margin-bottom: 1rem;
+      color: var(--accent);
+      font-size: clamp(2rem, 4vw, 3.2rem);
+      line-height: 1.15;
+    }
+    .hero-copy {
+      max-width: 820px;
+      margin: 0 auto;
+      color: #d0d0d0;
+      font-size: 1.12rem;
+    }
+    .stat-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: .85rem;
+      max-width: 900px;
+      margin: 2rem auto 0;
+    }
+    .stat {
+      padding: 1rem .75rem;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: var(--panel);
+    }
+    .stat strong { display: block; color: #fff; font-size: 1.35rem; }
+    .stat span { color: var(--muted); font-size: .9rem; }
+
+    .section {
+      max-width: var(--max-width);
+      margin: 0 auto 2.25rem;
+      padding: 2.2rem 1.5rem;
+      border-bottom: 1px solid var(--line);
+      opacity: 0;
+      transform: translateY(16px);
+      transition: opacity .55s ease, transform .55s ease;
+      scroll-margin-top: 1.5rem;
+    }
     .section.visible { opacity: 1; transform: translateY(0); }
-    .section h1 { margin-bottom: 1.5rem; color: #fff; }
-
-    /* ---------- Masonry/Images ---------- */
-    .masonry{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:.8rem;max-width:1100px;margin:0 auto}
-    .img-wrapper{position:relative;cursor:pointer;overflow:hidden;border-radius:8px}
-    .img-wrapper img{width:100%;height:100%;display:block;object-fit:cover;border-radius:8px;transition:transform .28s ease,box-shadow .28s ease}
-    .img-wrapper img:hover{transform:scale(1.03)}
-    .img-wrapper span.overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-weight:700;background:rgba(0,0,0,.45);color:#fff;border-radius:8px;opacity:0;transition:opacity .2s}
-    .img-wrapper:hover span.overlay{opacity:1}
-
-
-    /* ---------- Case Study ---------- */
-    .case-study{max-width:900px;margin:0 auto;display:flex;flex-direction:column;gap:2rem;text-align:left}
-    .case-block h2{color:#8ab4f8;font-size:1.2rem;text-transform:uppercase;letter-spacing:.5px;margin-bottom:.45rem}
-    .case-block p,.case-block ul{font-size:1.05rem;line-height:1.6;padding-left: 1.2rem;}
-
-    /* ---------- Lightbox ---------- */
-    #lightbox{display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:2000;justify-content:center;align-items:center;padding:1rem}
-    #lightbox.open{display:flex}
-    #lightbox img{max-width:95%;max-height:85%;object-fit:contain;border-radius:8px;box-shadow:0 8px 30px rgba(0,0,0,.8)}
-    #lightbox .close-btn{position:absolute;top:18px;right:28px;font-size:2rem;color:#fff;cursor:pointer}
-    #lightbox .close-btn:focus{outline:2px solid var(--accent)}
-	#lightbox .nav-btn {  position: absolute;  top: 50%;  transform: translateY(-50%);  font-size: 2.5rem;  color: white; background: rgba(0,0,0,0.5);  border: none;  cursor: pointer;  padding: 0.6rem 1rem;  border-radius: 6px; user-select: none;  transition: background 0.3s;}
-	#lightbox .nav-btn:hover {  background: rgba(0,0,0,0.75);}
-	#lbPrevBtn { left: 20px; }
-	#lbNextBtn { right: 20px; }
-
-	/* ----- Footer styling ----- */
-	footer { background: var(--panel); color: var(--muted); text-align: center; padding: 1.5rem 1rem; font-size: 0.9rem; border-top: 1px solid #333; margin-top: 3rem;}
-	footer p { margin: 0; letter-spacing: 0.5px;}
-	footer a { color: var(--accent); text-decoration: none; font-weight: 600;}
-	footer a:hover { text-decoration: underline;}
-	/* Keep footer at bottom when content is short */
-	html, body { height: 100%; display: flex; flex-direction: column;}
-	main.content { flex: 1;}
-
-    /* ---------- Responsive rules ---------- */
-    /* Mobile first adjustments */
-    @media (max-width:767px){
-      .sidebar{transform:translateX(-105%);width:85vw;max-width:320px;padding:3rem;align-items:center}
-      .sidebar.active{transform:translateX(0)}
-      .menu-toggle{display:flex}
-      .content{margin-left:0;padding:1rem}
-      .project-title{font-size:1.4rem}
-      model-viewer{height:40vh}
-      .mobile-overlay.active{opacity:1}
-        .mobile-overlay {
-    width: 0vw;         /* Covers only the right 15% behind content */
-    left: auto;          /* Reset left positioning */
-    right: 0;
-    transform: none;     /* No sliding needed */
-  }
-      .masonry{grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:.6rem}
-      .back-button{align-self:flex-start;margin-top:.75rem}
+    .section > h2 {
+      margin-bottom: 1.25rem;
+      color: #fff;
+      font-size: 1.8rem;
+      text-align: center;
+    }
+    .section-intro {
+      max-width: 850px;
+      margin: 0 auto 1.5rem;
+      color: #d0d0d0;
+      text-align: center;
+    }
+    .case-study {
+      display: flex;
+      flex-direction: column;
+      gap: 1.35rem;
+      max-width: 930px;
+      margin: 0 auto;
+      text-align: left;
+    }
+    .case-block {
+      padding: 1.25rem 1.35rem;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: var(--panel);
+    }
+    .case-block h3 {
+      margin-bottom: .55rem;
+      color: #8ab4f8;
+      font-size: 1.05rem;
+      letter-spacing: .04em;
+      text-transform: uppercase;
+    }
+    .case-block p, .case-block ul, .case-block ol {
+      font-size: 1rem;
+      line-height: 1.65;
+    }
+    .case-block ul, .case-block ol { padding-left: 1.25rem; }
+    .case-block li + li { margin-top: .3rem; }
+    code {
+      padding: .08rem .32rem;
+      border-radius: 4px;
+      background: #292929;
+      color: #b9dcff;
+      font-family: Consolas, "Courier New", monospace;
     }
 
-    /* Tablet: fixed sidebar (per your 'fixed' choice) */
-    @media (min-width:768px) and (max-width:1024px){
-      .sidebar{transform:none;left:0;width:220px;padding:1.8rem;align-items:center}
-      .menu-toggle{display:none}
-      .content{margin-left:220px;padding:1.5rem}
-      model-viewer{height:55vh}
+    .stage-grid, .feature-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: .9rem;
+      max-width: 930px;
+      margin: 0 auto;
+      text-align: left;
+    }
+    .stage-card, .feature-card {
+      padding: 1rem 1.1rem;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: var(--panel);
+    }
+    .stage-card h3, .feature-card h3 {
+      margin-bottom: .4rem;
+      color: #8ab4f8;
+      font-size: 1rem;
+    }
+    .stage-card p, .feature-card p { color: #d0d0d0; }
+
+    .table-wrap { overflow-x: auto; max-width: 930px; margin: 1rem auto 0; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: var(--panel);
+      text-align: left;
+    }
+    caption {
+      margin-bottom: .65rem;
+      color: #8ab4f8;
+      font-weight: 700;
+      text-align: left;
+    }
+    th, td { padding: .72rem .85rem; border: 1px solid var(--line); vertical-align: top; }
+    th { background: #202020; color: #fff; }
+    td { color: #d0d0d0; }
+    .register-table td:first-child, .register-table th:first-child { white-space: nowrap; }
+
+    .cycle-list {
+      max-width: 850px;
+      margin: 0 auto;
+      padding-left: 1.5rem;
+      text-align: left;
+    }
+    .cycle-list li { padding: .15rem 0 .45rem .25rem; }
+    .cycle-list li::marker { color: var(--accent); font-weight: 700; }
+
+    footer {
+      margin-top: 2rem;
+      padding: 1.4rem 1rem;
+      border-top: 1px solid var(--line);
+      background: var(--panel);
+      color: var(--muted);
+      font-size: .9rem;
+      text-align: center;
     }
 
-    /* Desktop */
-    @media (min-width:1025px){
-      .sidebar{transform:none;left:0;width:260px}
-      .content{margin-left:260px;padding:2rem}
+    @media (min-width: 1200px) {
+      .sidebar { width: 260px; }
+      .content { margin-left: 260px; }
     }
-
-    /* Small accessibility improvements */
-    button, .menu-toggle{border:0;background:none;color:inherit}
+    @media (max-width: 900px) {
+      .sidebar { width: 220px; }
+      .content { margin-left: 220px; padding-inline: 1.5rem; }
+      .stat-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+    @media (max-width: 767px) {
+      .sidebar {
+        width: min(85vw, 320px);
+        padding: 3.5rem 2rem 2rem;
+        transform: translateX(-105%);
+      }
+      .sidebar.active { transform: translateX(0); }
+      .menu-toggle { display: block; }
+      .content { margin-left: 0; padding: 1rem; }
+      .hero { padding: 4rem .5rem 1.5rem; }
+      .section { padding: 1.7rem .35rem; }
+      .section > h2 { font-size: 1.5rem; }
+      .stage-grid, .feature-grid { grid-template-columns: 1fr; }
+      .stat-grid { gap: .55rem; }
+      .stat { padding: .8rem .45rem; }
+      .stat strong { font-size: 1.15rem; }
+      .stat span { font-size: .8rem; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      *, *::before, *::after { transition-duration: .01ms !important; }
+      .section { opacity: 1; transform: none; }
+    }
   </style>
 </head>
 <body>
-
-  <!-- Mobile Menu Toggle (hamburger) -->
   <button class="menu-toggle" id="menuToggle" aria-expanded="false" aria-controls="sidebar" aria-label="Open menu">
-    <i class="fas fa-bars" aria-hidden="true"></i>
+    <span aria-hidden="true">☰</span>
   </button>
 
-  <!-- Visual overlay (mobile only visual) -->
-  <div class="mobile-overlay" id="mobileOverlay" aria-hidden="true"></div>
-
-  <!-- Sidebar -->
   <nav id="sidebar" class="sidebar" aria-label="Main navigation">
-    <h2>Portfolio</h2>
+    <h2>Project</h2>
     <ul>
       <li><a href="#overview">Overview</a></li>
-      <li><a href="#drawings">Diagrams</a></li>
-      <li><a href="#photos">Photos</a></li>
+      <li><a href="#architecture">Processor</a></li>
+      <li><a href="#hardware">Hardware</a></li>
+      <li><a href="#software">Software</a></li>
+      <li><a href="#verification">Verification</a></li>
     </ul>
-    <a href="index.html#projects" class="back-button"><i class="fas fa-arrow-left" aria-hidden="true"></i> Back</a>
+    <a href="index.html#projects" class="back-button"><span aria-hidden="true">←</span> Back to Portfolio</a>
   </nav>
 
-  <!-- Main Content -->
-  <main class="content" id="mainContent" tabindex="-1">
-    <h1 class="project-title">Box Form - (5'x5'x6')</h1>
+  <main class="content" id="mainContent">
+    <header class="hero">
+      <p class="eyebrow">FPGA · Structural Verilog · Embedded Control</p>
+      <h1 class="project-title">Custom 32-Bit Pipelined Processor on FPGA</h1>
+      <p class="hero-copy">
+        A custom five-stage, single-issue processor built in structural Verilog and deployed on a Xilinx FPGA at 100 Mhz.
+        The processor's memory-mapped I/O controls a claw machine built by repurposing a PlasticFab-3B 12-cubed platform.
+      </p>
+      <div class="stat-grid" aria-label="Project specifications">
+        <div class="stat"><strong>32-bit</strong><span>Processor datapath</span></div>
+        <div class="stat"><strong>5 stages</strong><span>Fetch through writeback</span></div>
+        <div class="stat"><strong>100 Mhz</strong><span>FPGA clock</span></div>
+        <div class="stat"><strong>Memory-mapped</strong><span>Peripheral interface</span></div>
+      </div>
+    </header>
 
-    <!-- Overview -->
     <section id="overview" class="section" aria-labelledby="overview-heading">
-      <h1 id="overview-heading">Project Overview</h1>
-
+      <h2 id="overview-heading">Project Overview</h2>
       <div class="case-study">
         <div class="case-block">
-          <h2>Objective</h2>
-			<p>Design and manufacture a <strong>5' x 5' x 6' modular concrete box form</strong> that improves casting efficiency, withstands repeated heavy-duty use, and maintains tight dimensional tolerances to reduce rework and material loss.</p>
+          <h3>Objective</h3>
+          <p>
+            Design and deploy a 32-bit pipelined processor that can run an assembly program and interact with external hardware.
+            The claw machine serves as the application; the central engineering work is the processor datapath, pipeline control,
+            hazard handling, instruction execution, and hardware/software interface.
+          </p>
         </div>
-
         <div class="case-block">
-          <h2>Role & Responsibilities</h2>
+          <h3>System Components</h3>
+          <p>
+            The system brings together a program counter, instruction and data memories, register file, ALU, multicycle
+            multiplication and division unit, pipeline control, assembly software, and memory-mapped hardware I/O.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <section id="architecture" class="section" aria-labelledby="architecture-heading">
+      <h2 id="architecture-heading">Processor Architecture</h2>
+      <p class="section-intro">
+        The CPU is single-issue and uses F/D, D/X, X/M, and M/W pipeline latches between its five stages.
+        Separate word-addressed instruction and data memories keep instruction fetch distinct from data access.
+      </p>
+      <div class="stage-grid" aria-label="Five processor pipeline stages">
+        <article class="stage-card">
+          <h3>1. Fetch</h3>
+          <p>The program counter addresses instruction memory and normally increments by one because memory is word-addressed. After reset, execution starts at address zero.</p>
+        </article>
+        <article class="stage-card">
+          <h3>2. Decode</h3>
+          <p>Decode interprets the opcode and fields, reads source registers, and creates control signals. Branch and jump decisions are coordinated here without delay slots.</p>
+        </article>
+        <article class="stage-card">
+          <h3>3. Execute</h3>
+          <p>The ALU performs arithmetic, logic, comparisons, and branch decisions, with overflow detection and exception generation. Multiply and divide use a separate multicycle path.</p>
+        </article>
+        <article class="stage-card">
+          <h3>4. Memory</h3>
+          <p>The memory stage handles word loads and stores and connects software to data memory and the memory-mapped peripheral interface.</p>
+        </article>
+        <article class="stage-card">
+          <h3>5. Writeback</h3>
+          <p>The destination register receives the selected ALU result, memory value, MultDiv result, or control-flow result.</p>
+        </article>
+      </div>
+
+      <div class="feature-grid" style="margin-top: 1rem;">
+        <article class="feature-card">
+          <h3>Hazard Handling</h3>
+          <p>Forwarding resolves read-after-write dependencies when possible. The control logic stalls for load-use dependencies and holds fetch/decode while MultDiv is busy. Taken branches and jumps redirect the PC and suppress the following instruction.</p>
+        </article>
+        <article class="feature-card">
+          <h3>Register File</h3>
+          <p>The register file has two read ports and one write port. <code>$r0</code> is hardwired to zero, <code>$r30</code> stores status and exception codes, and <code>$r31</code> holds the return address for <code>jal</code>.</p>
+        </article>
+        <article class="feature-card">
+          <h3>MultDiv Unit</h3>
+          <p>Multiplication and division are iterative operations coordinated with the pipeline. The processor waits for the ready signal before committing a result; one-cycle control pulses prevent a stall from accidentally restarting an operation.</p>
+        </article>
+        <article class="feature-card">
+          <h3>Exceptions</h3>
+          <p>Arithmetic overflow and exception handling use the status register. The instruction set includes <code>bex</code> and <code>setx</code> for exception and status control.</p>
+        </article>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <caption>Instruction set used in the processor</caption>
+          <thead><tr><th scope="col">Instruction</th><th scope="col">Operation</th></tr></thead>
+          <tbody>
+            <tr><td><code>add</code>, <code>addi</code>, <code>sub</code></td><td>Signed arithmetic with overflow detection</td></tr>
+            <tr><td><code>and</code>, <code>or</code>, <code>sll</code></td><td>Bitwise logic and logical left shift</td></tr>
+            <tr><td><code>mult</code>, <code>div</code></td><td>Multicycle multiplication and division, including divide-by-zero handling</td></tr>
+            <tr><td><code>bne</code>, <code>blt</code></td><td>Conditional branches</td></tr>
+            <tr><td><code>j</code>, <code>jal</code>, <code>jr</code></td><td>Jump, link, and register jump control flow</td></tr>
+            <tr><td><code>lw</code>, <code>sw</code></td><td>Word load and store</td></tr>
+            <tr><td><code>bex</code>, <code>setx</code></td><td>Exception and status control</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="hardware" class="section" aria-labelledby="hardware-heading">
+      <h2 id="hardware-heading">Memory-Mapped I/O and Claw Machine</h2>
+      <p class="section-intro">
+        The FPGA wrapper connects the processor to ROM, RAM, and peripheral logic. In the integrated design, address
+        <code>4096</code> is used for reads and address <code>4097</code> for writes.
+      </p>
+
+      <div class="table-wrap">
+        <table class="register-table">
+          <caption>Application register map</caption>
+          <thead><tr><th scope="col">Register</th><th scope="col">Signal</th><th scope="col">Direction</th><th scope="col">Purpose</th></tr></thead>
+          <tbody>
+            <tr><td><code>$r1–$r4</code></td><td><code>go_right</code>, <code>go_left</code>, <code>go_up</code>, <code>go_down</code></td><td>Inputs</td><td>Joystick directions</td></tr>
+            <tr><td><code>$r5–$r6</code></td><td><code>switch_X</code>, <code>switch_Y</code></td><td>Inputs</td><td>Axis limit switches</td></tr>
+            <tr><td><code>$r7</code></td><td><code>button</code></td><td>Input</td><td>Start and drop control</td></tr>
+            <tr><td><code>$r11–$r12</code></td><td>X/Y driver controls</td><td>Outputs</td><td>Enable or disable X and Y motion</td></tr>
+            <tr><td><code>$r13</code></td><td>Claw command</td><td>Output</td><td>Open or close the claw</td></tr>
+            <tr><td><code>$r14–$r15</code></td><td>Z driver and motion signals</td><td>Outputs</td><td>Control Z-axis driver and direction</td></tr>
+            <tr><td><code>$r16</code></td><td>Claw state feedback</td><td>Input</td><td>Verilog feedback to the assembly program</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="feature-grid" style="margin-top: 1rem;">
+        <article class="feature-card">
+          <h3>Motion System</h3>
+          <p>The repurposed PlasticFab-3B 12-cubed printed platform provides much of the XYZ structure. NEMA 17 stepper motors use external driver modules; step pulses advance the motors and direction signals select travel direction. Verilog PWM serializers generate motor pulses while assembly tracks logical positions.</p>
+        </article>
+        <article class="feature-card">
+          <h3>Inputs and Sensors</h3>
+          <p>A joystick requests X/Y movement, a push button starts the game and drop sequence, X/Y limit switches detect mechanical boundaries, and an IR break-beam sensor supplies object or position feedback. Limit-switch handling resets tracked position and moves an axis away from a triggered boundary.</p>
+        </article>
+        <article class="feature-card">
+          <h3>Claw and Effects</h3>
+          <p>The claw motor is controlled separately from XYZ motion through <code>$r13</code>, with state feedback through <code>$r16</code>. Independently added LEDs and application-level music run during the celebration sequence.</p>
+        </article>
+        <article class="feature-card">
+          <h3>Software Calibration</h3>
+          <p>These values are application settings that depend on the machine geometry, cable, motor speed, driver settings, and pulley arrangement; they are not fixed properties of the processor.</p>
+        </article>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <caption>Motor and timing parameters</caption>
+          <thead><tr><th scope="col">Parameter</th><th scope="col">Value</th><th scope="col">Purpose</th></tr></thead>
+          <tbody>
+            <tr><td>CPU clock</td><td>100 Mhz</td><td>Processor and timing reference</td></tr>
+            <tr><td>X/Y position limit</td><td>470</td><td>Maximum software-tracked X/Y coordinate</td></tr>
+            <tr><td>Joystick delay threshold</td><td>35,000 cycles</td><td>Delay before a joystick command updates position</td></tr>
+            <tr><td>Z position limit</td><td>3,000</td><td>Maximum software-tracked drop distance</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="software" class="section" aria-labelledby="software-heading">
+      <h2 id="software-heading">Assembly-Controlled Operating Cycle</h2>
+      <p class="section-intro">
+        The assembly program handles sequencing, timing, state tracking, boundary checks, and decisions. Peripheral logic translates processor outputs into electrical signals for the motors, claw, LEDs, and music.
+      </p>
+      <ol class="cycle-list">
+        <li>Start with the X, Y, and Z drivers disabled, then wait for the start button.</li>
+        <li>On the first press, initialize position and delay counters and raise the claw to its starting height.</li>
+        <li>Use joystick input to position the claw in X and Y; direction counters pace position updates.</li>
+        <li>On the second press, disable X/Y movement and begin lowering the claw along Z.</li>
+        <li>At the Z position limit, close the claw, reverse Z motion, and raise the claw.</li>
+        <li>Return the X/Y mechanism toward its starting position using software position tracking and limit-switch feedback.</li>
+        <li>Open the claw to release the object, then run the independent LED and music celebration behavior.</li>
+      </ol>
+      <div class="case-study" style="margin-top: 1.25rem;">
+        <div class="case-block">
+          <h3>Assembly Demonstration</h3>
+          <p>The program initializes outputs, polls mapped inputs, updates position state, checks boundaries, and branches through start, wait, move, drop, close, rise, return, and celebration states. This exercises arithmetic, register dependencies, branches, loops, and memory-mapped I/O in software.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="verification" class="section" aria-labelledby="verification-heading">
+      <h2 id="verification-heading">Verification and FPGA Deployment</h2>
+      <p class="section-intro">
+        The processor is deployed on a Xilinx FPGA at 100 Mhz. The following areas form the system verification checklist described for the project.
+      </p>
+      <div class="feature-grid">
+        <article class="feature-card">
+          <h3>Processor Modules</h3>
+          <p>Check ALU operations, register-file reads and writes, instruction decode, and status-register behavior.</p>
+        </article>
+        <article class="feature-card">
+          <h3>Pipeline Control</h3>
+          <p>Exercise forwarding, load-use stalls, taken and not-taken branches, jumps, MultDiv completion, and pipeline holding.</p>
+        </article>
+        <article class="feature-card">
+          <h3>Integrated System</h3>
+          <p>Check reset and PC initialization, memory-mapped reads and writes, and assembly execution with simulated peripheral inputs.</p>
+        </article>
+        <article class="feature-card">
+          <h3>Hardware Bring-Up</h3>
+          <p>Use Vivado/XSim simulation and check timing at 100 Mhz. During bring-up, verify the CPU and mapped registers before connecting motors; test peripherals one at a time and confirm limit-switch behavior and driver-disable polarity.</p>
+        </article>
+      </div>
+      <div class="case-study" style="margin-top: 1rem;">
+        <div class="case-block">
+          <h3>Key Repository Modules</h3>
           <ul>
-       		 <li>Led full CAD modeling and mechanical design process</li>
-     	     <li>Generated BOM and cut lists for fabrication</li>
-       		 <li>Coordinated ordering, assembly, and shop support</li>
+            <li><code>processor</code>: top-level pipelined CPU</li>
+            <li><code>regfile</code>: register file</li>
+            <li><code>ROM</code> and <code>RAM</code>: instruction and data memories</li>
+            <li><code>wrapper_claw</code>: FPGA and peripheral integration</li>
+            <li>Assembly source, instruction-memory image, and processor/system testbenches</li>
           </ul>
         </div>
-
-        <div class="case-block">
-          <h2>Engineering Features</h2>
-          <ul>
-       		 <li>Heavy-duty reinforced wall structure</li>
-       		 <li>Precision bolt and pin alignment for repeat assembly</li>
-        	 <li>Modular panels allowing full disassembly and transport</li>
-          </ul>
-        </div>
-
-        <div class="case-block">
-          <h2>Tools & Software</h2>
-			<p>Autodesk Inventor (CAD Modeling), MIG Welding, Plasma Cutting, and Shop Fabrication Equipment</p>
-        </div>
-
-        <div class="case-block">
-          <h2>Outcome</h2>
-          <p>Successfully deployed in production with <strong>consistent ±1/16” accuracy</strong> across all panels, zero failures over multiple casting cycles, and a modular system that reduced setup and teardown time.</p>
-        </div>
       </div>
     </section>
 
-
-
-    <!-- Drawings -->
-    <section id="drawings" class="section" aria-labelledby="drawings-heading">
-      <h1 id="drawings-heading">Diagrams</h1>
-      <div class="masonry" id="drawingsMasonry">
-        <div class="img-wrapper"><img loading="lazy" src="Project_1/Drawings/Roller_Assembly.jpg" alt="Roller Assembly"><span class="overlay">Click to expand</span></div>
-        <div class="img-wrapper"><img loading="lazy" src="Project_1/Drawings/Core_Assembly.jpg" alt="Core Assembly"><span class="overlay">Click to expand</span></div>
-        <div class="img-wrapper"><img loading="lazy" src="Project_1/Drawings/Long_Jacket_Assembly.jpg" alt="Long Jacket Assembly"><span class="overlay">Click to expand</span></div>
-        <div class="img-wrapper"><img loading="lazy" src="Project_1/Drawings/Short_Jacket_Assembly.jpg" alt="Short Jacket Assembly"><span class="overlay">Click to expand</span></div>
-        <div class="img-wrapper"><img loading="lazy" src="Project_1/Drawings/Core_Base_Assembly.jpg" alt="Core Base Assembly"><span class="overlay">Click to expand</span></div>
-        <div class="img-wrapper"><img loading="lazy" src="Project_1/Drawings/Form_Assembly.jpg" alt="Form Assembly"><span class="overlay">Click to expand</span></div>
-      </div>
-    </section>
-
-    <!-- Photos -->
-    <section id="photos" class="section" aria-labelledby="photos-heading">
-      <h1 id="photos-heading">Photos</h1>
-      <div class="masonry" id="photosMasonry">
-        <div class="img-wrapper"><img loading="lazy" src="Project_1/Pictures/Rollers.jpg" alt="Rollers"><span class="overlay">Click to expand</span></div>
-        <div class="img-wrapper"><img loading="lazy" src="Project_1/Pictures/Form_2.jpg" alt="Form 2"><span class="overlay">Click to expand</span></div>
-        <div class="img-wrapper"><img loading="lazy" src="Project_1/Pictures/Jacket.jpg" alt="Jacket"><span class="overlay">Click to expand</span></div>
-        <div class="img-wrapper"><img loading="lazy" src="Project_1/Pictures/Form.jpg" alt="Form"><span class="overlay">Click to expand</span></div>
-        <div class="img-wrapper"><img loading="lazy" src="Project_1/Pictures/Core.jpg" alt="Core"><span class="overlay">Click to expand</span></div>
-		<div class="img-wrapper"><img loading="lazy" src="Project_1/Pictures/Form_1.jpg" alt="Form 1"><span class="overlay">Click to expand</span></div>
-      </div>
-    </section>
-
-<!-- Lightbox -->
-<div id="lightbox" role="dialog" aria-modal="true" aria-hidden="true">
-  <button class="close-btn" aria-label="Close image" title="Close" id="lbCloseBtn">&times;</button>
-  <button class="nav-btn prev" id="lbPrevBtn" aria-label="Previous image">&#10094;</button>
-  <img id="lightbox-img" src="" alt="Expanded view">
-  <button class="nav-btn next" id="lbNextBtn" aria-label="Next image">&#10095;</button>
-</div>
-
-    <!-- Footer -->
     <footer>
-      <p>© 2025 Nathaniel Karau — Engineering Portfolio v1.0</p>
+      <p>Custom 32-Bit Pipelined Processor on FPGA</p>
     </footer>
   </main>
 
-  <!-- Scripts -->
   <script>
-    // Elements
     const menuToggle = document.getElementById('menuToggle');
     const sidebar = document.getElementById('sidebar');
-    const mobileOverlay = document.getElementById('mobileOverlay');
-    const content = document.querySelector('.content');
     const sections = document.querySelectorAll('.section');
 
-    // Lightbox
-    const lightbox = document.getElementById('lightbox');
-    const lightboxImg = document.getElementById('lightbox-img');
-    const lbCloseBtn = document.getElementById('lbCloseBtn');
-
-    // ---------- Sidebar toggle (mobile) ----------
-    function openSidebar() {
-      sidebar.classList.add('active');
-      menuToggle.setAttribute('aria-expanded', 'true');
-      mobileOverlay.classList.add('active');
-      // NOTE: overlay is visual-only (pointer-events: none). We keep page scrollable behind.
-      // Focus the first link for accessibility
-      const firstLink = sidebar.querySelector('a');
-      if (firstLink) firstLink.focus();
-    }
     function closeSidebar() {
       sidebar.classList.remove('active');
       menuToggle.setAttribute('aria-expanded', 'false');
-      mobileOverlay.classList.remove('active');
-      menuToggle.focus();
+      menuToggle.setAttribute('aria-label', 'Open menu');
     }
 
     menuToggle.addEventListener('click', () => {
-      if (sidebar.classList.contains('active')) closeSidebar();
-      else openSidebar();
+      const isOpen = sidebar.classList.toggle('active');
+      menuToggle.setAttribute('aria-expanded', String(isOpen));
+      menuToggle.setAttribute('aria-label', isOpen ? 'Close menu' : 'Open menu');
     });
 
-    // Close sidebar if a nav link is clicked (mobile)
-    sidebar.querySelectorAll('a').forEach(a => {
-      a.addEventListener('click', () => {
+    sidebar.querySelectorAll('a[href^="#"]').forEach(link => {
+      link.addEventListener('click', () => {
         if (window.innerWidth <= 767) closeSidebar();
       });
     });
 
-    // If user taps outside when sidebar is active, we DO NOT auto-close (to honor "allow scroll").
-    // You can close with the hamburger again.
-
-    // ---------- Section fade-in (IntersectionObserver) ----------
-    const observer = new IntersectionObserver((entries) => {
+    const observer = new IntersectionObserver(entries => {
       entries.forEach(entry => {
-        if (entry.isIntersecting) entry.target.classList.add('visible');
-      });
-    }, { threshold: 0.12 });
-    sections.forEach(s => observer.observe(s));
-
-    // ---------- Lightbox behavior ----------
-    function openLightbox(src, alt) {
-      lightboxImg.src = src;
-      lightboxImg.alt = alt || 'Expanded image';
-      lightbox.classList.add('open');
-      lightbox.setAttribute('aria-hidden','false');
-      lbCloseBtn.focus();
-    }
-    function closeLightbox() {
-      lightbox.classList.remove('open');
-      lightbox.setAttribute('aria-hidden','true');
-      lightboxImg.src = '';
-    }
-
-    // Click images to open
-    document.querySelectorAll('.img-wrapper').forEach(wrapper => {
-      wrapper.addEventListener('click', () => {
-        const img = wrapper.querySelector('img');
-        openLightbox(img.src, img.alt);
-      });
-      // keyboard access
-      wrapper.setAttribute('tabindex','0');
-      wrapper.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          const img = wrapper.querySelector('img');
-          openLightbox(img.src, img.alt);
+        if (entry.isIntersecting) {
+          entry.target.classList.add('visible');
+          observer.unobserve(entry.target);
         }
       });
+    }, { threshold: 0.08 });
+
+    sections.forEach(section => observer.observe(section));
+
+    window.addEventListener('keydown', event => {
+      if (event.key === 'Escape' && sidebar.classList.contains('active')) closeSidebar();
     });
-
-// Collect all lightbox images (drawings + photos)
-const imgWrappers = document.querySelectorAll('.img-wrapper');
-let currentIndex = -1; // track which image is open
-
-function openLightbox(src, alt, index) {
-  lightboxImg.src = src;
-  lightboxImg.alt = alt || 'Expanded image';
-  lightbox.classList.add('open');
-  lightbox.setAttribute('aria-hidden','false');
-  currentIndex = index;
-  lbCloseBtn.focus();
-}
-
-function showImage(index) {
-  if (index < 0) index = imgWrappers.length - 1;
-  if (index >= imgWrappers.length) index = 0;
-  const img = imgWrappers[index].querySelector('img');
-  openLightbox(img.src, img.alt, index);
-}
-
-// Click to open
-imgWrappers.forEach((wrapper, i) => {
-  wrapper.addEventListener('click', () => {
-    const img = wrapper.querySelector('img');
-    openLightbox(img.src, img.alt, i);
-  });
-  wrapper.setAttribute('tabindex','0');
-  wrapper.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' || e.key === ' ') {
-      e.preventDefault();
-      const img = wrapper.querySelector('img');
-      openLightbox(img.src, img.alt, i);
-    }
-  });
-});
-
-// Nav buttons
-document.getElementById('lbPrevBtn').addEventListener('click', () => showImage(currentIndex - 1));
-document.getElementById('lbNextBtn').addEventListener('click', () => showImage(currentIndex + 1));
-
-// Keyboard support
-window.addEventListener('keydown', (e) => {
-  if (!lightbox.classList.contains('open')) return;
-  if (e.key === 'ArrowRight') showImage(currentIndex + 1);
-  if (e.key === 'ArrowLeft') showImage(currentIndex - 1);
-});
-	  
-    // Close controls
-    lbCloseBtn.addEventListener('click', closeLightbox);
-    lightbox.addEventListener('click', (e) => {
-      // If user clicked the backdrop (not the img or close button), close
-      if (e.target === lightbox) closeLightbox();
-    });
-    window.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape') {
-        if (lightbox.classList.contains('open')) closeLightbox();
-        if (sidebar.classList.contains('active') && window.innerWidth <= 767) closeSidebar();
-      }
-    });
-
-    // Lightbox swipe-to-close (vertical swipe)
-    (function addSwipeClose(el) {
-      let startY = null;
-      let moved = false;
-      el.addEventListener('touchstart', (e) => {
-        if (e.touches && e.touches.length === 1) {
-          startY = e.touches[0].clientY;
-          moved = false;
-        }
-      }, {passive:true});
-      el.addEventListener('touchmove', (e) => {
-        if (!startY) return;
-        const currentY = e.touches[0].clientY;
-        const diff = currentY - startY;
-        if (Math.abs(diff) > 20) moved = true;
-      }, {passive:true});
-      el.addEventListener('touchend', (e) => {
-        if (!moved) { startY = null; return; }
-        const endY = (e.changedTouches && e.changedTouches[0]) ? e.changedTouches[0].clientY : null;
-        if (startY && endY) {
-          const delta = endY - startY;
-          // swipe up or down to close
-          if (Math.abs(delta) > 80) closeLightbox();
-        }
-        startY = null; moved = false;
-      });
-    })(lightbox);
-
-    // ---------- Ensure model-viewer scales nicely on resize ----------
-    function adjustModelViewerHeight() {
-      const mv = document.querySelector('model-viewer');
-      if (!mv) return;
-      if (window.innerWidth < 480) mv.style.height = '40vh';
-      else if (window.innerWidth < 768) mv.style.height = '45vh';
-      else if (window.innerWidth < 1024) mv.style.height = '55vh';
-      else mv.style.height = '60vh';
-    }
-    window.addEventListener('resize', adjustModelViewerHeight);
-    adjustModelViewerHeight();
-
-    // ---------- Small UX improvements ----------
-    // Trap focus inside sidebar when it's open on mobile? We keep allow-scroll so focus-trap is not necessary.
-    // But we ensure keyboard users can toggle menu with Escape (handled above) and the toggle button is labeled.
-
-    // If user reloads while sidebar active on small screens, ensure state is consistent
-    window.addEventListener('load', () => {
-      if (window.innerWidth <= 767) {
-        sidebar.classList.remove('active');
-        mobileOverlay.classList.remove('active');
-        menuToggle.setAttribute('aria-expanded','false');
-      }
+    window.addEventListener('resize', () => {
+      if (window.innerWidth > 767) closeSidebar();
     });
   </script>
 </body>
